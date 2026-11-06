@@ -4,6 +4,7 @@ import domain.model.GameBoard;
 
 import java.util.UUID;
 
+
 public record GameResponseDTO(
         UUID gameId,
         PlayerInfoDTO xPlayer,
@@ -12,6 +13,7 @@ public record GameResponseDTO(
         String state,
         UUID currentPlayerId,
         UUID winnerId,
-        String status
+        String status,
+        java.time.Instant createdAt
 ) {
 }

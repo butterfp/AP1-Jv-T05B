@@ -10,8 +10,10 @@ import web.model.UserInfoDTO;
 
 import java.util.UUID;
 
+
 @Component
 public class WebMapper {
+
 
     public GameResponseDTO toResponse(GameSession game, String status) {
         return new GameResponseDTO(
@@ -22,12 +24,18 @@ public class WebMapper {
                 game.stateName(),
                 game.currentPlayerId(),
                 game.winnerId(),
-                status);
+                status, game.createdAt());
+    }
+
+
+    public web.model.LeaderboardPlayerDTO toLeaderboardPlayer(domain.model.PlayerWinInfo player) {
+        return new web.model.LeaderboardPlayerDTO(player.userId(), player.login(), player.winRatio());
     }
 
     public UserInfoDTO toUserResponse(User user) {
-        return new UserInfoDTO(user.id(), user.login());
+        return new UserInfoDTO(user.id(), user.login(), user.roles());
     }
+
 
     private PlayerInfoDTO toPlayer(PlayerType type, UUID playerId) {
         if (type == null) {

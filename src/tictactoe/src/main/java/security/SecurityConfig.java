@@ -1,6 +1,6 @@
 package security;
 
-import domain.service.AuthService;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,26 +9,29 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+
 @Configuration
-@EnableWebSecurity      // включает модуль веб-безопасности Spring Security
+@EnableWebSecurity
 public class SecurityConfig {
 
-    private final AuthService authService;
+    private final JwtProvider jwtProvider;
 
-    public SecurityConfig(AuthService authService) {
-        this.authService = authService;
+    public SecurityConfig(JwtProvider jwtProvider) {
+        this.jwtProvider = jwtProvider;
     }
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
+                .exceptionHandling(errors -> errors.authenticationEntryPoint((request, response, error) -> response.sendError(401)))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/sign-up", "/auth/sign-in").permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(new AuthFilter(authService), UsernamePasswordAuthenticationFilter.class)
+                        .requestMatchers("/auth/sign-up", "/auth/sign-in", "/auth/refresh-access").permitAll()
+                        .anyRequest().hasRole("USER"))
+                .addFilterBefore(new AuthFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 }

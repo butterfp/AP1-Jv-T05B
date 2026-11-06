@@ -29,10 +29,12 @@ public class GameController {
 
     private final WebMapper webMapper;
 
+
     public GameController(TicTacToeService ticTacToeService, WebMapper webMapper) {
         this.ticTacToeService = ticTacToeService;
         this.webMapper = webMapper;
     }
+
 
     @PostMapping
     public ResponseEntity<GameResponseDTO> createGame(
@@ -42,6 +44,20 @@ public class GameController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(game));
     }
 
+
+    @GetMapping("/leaderboard")
+    public List<web.model.LeaderboardPlayerDTO> getLeaderboard(@RequestParam(name = "n") int limit) {
+        return ticTacToeService.getTopPlayers(limit).stream()
+                .map(webMapper::toLeaderboardPlayer).toList();
+    }
+
+
+    @GetMapping("/history")
+    public List<GameResponseDTO> getHistory(@AuthenticationPrincipal UUID userId) {
+        return ticTacToeService.getFinishedGames(userId).stream().map(this::toDto).toList();
+    }
+
+
     @GetMapping("/list/available")
     public List<GameResponseDTO> getAvailableGames() {
         return ticTacToeService.getAvailableGames().stream()
@@ -49,11 +65,13 @@ public class GameController {
                 .toList();
     }
 
+
     @PostMapping("/{id}/join")
     public GameResponseDTO joinGame(@PathVariable("id") UUID id,
                                     @AuthenticationPrincipal UUID userId) {
         return toDto(ticTacToeService.joinGame(id, userId));
     }
+
 
     @PostMapping("/{id}")
     public GameResponseDTO updateGame(@PathVariable("id") UUID id,
@@ -66,10 +84,12 @@ public class GameController {
         return toDto(game);
     }
 
+
     @GetMapping("/{id}")
     public GameResponseDTO getGame(@PathVariable("id") UUID id) {
         return toDto(ticTacToeService.getGameById(id));
     }
+
 
     private GameResponseDTO toDto(GameSession game) {
         return webMapper.toResponse(game, ticTacToeService.getGameStatus(game));
