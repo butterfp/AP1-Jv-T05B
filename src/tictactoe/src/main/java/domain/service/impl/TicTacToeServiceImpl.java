@@ -11,14 +11,18 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.UUID;
 
+
+
 @Service
 public class TicTacToeServiceImpl implements TicTacToeService {
 
     private final GameRepository gameRepository;
 
+
     public TicTacToeServiceImpl(GameRepository gameRepository) {
         this.gameRepository = gameRepository;
     }
+
 
     @Override
     public GameSession createGame(PlayerType opponentType, UUID playerId) {
@@ -41,16 +45,33 @@ public class TicTacToeServiceImpl implements TicTacToeService {
         return game;
     }
 
+
     @Override
     public GameSession getGameById(UUID gameId) {
         return gameRepository.findById(gameId)
                 .orElseThrow(() -> new IllegalArgumentException("Игра с ID " + gameId + " не найдена"));
     }
 
+
     @Override
     public List<GameSession> getAvailableGames() {
         return gameRepository.findWaitingGames();
     }
+
+
+    @Override
+    public List<GameSession> getFinishedGames(UUID playerId) {
+        if (playerId == null) throw new IllegalArgumentException("Требуется UUID игрока");
+        return gameRepository.findFinishedByPlayerId(playerId);
+    }
+
+
+    @Override
+    public List<domain.model.PlayerWinInfo> getTopPlayers(int limit) {
+        if (limit <= 0) throw new IllegalArgumentException("N must be greater than zero");
+        return gameRepository.findTopPlayers(limit);
+    }
+
 
     @Override
     public GameSession joinGame(UUID gameId, UUID playerId) {
@@ -66,31 +87,33 @@ public class TicTacToeServiceImpl implements TicTacToeService {
         GameSession joined = new GameSession(game.id(), game.board(),
                 game.xPlayerType(), game.xPlayerId(),
                 PlayerType.USER, playerId,
-                GameState.X_TURN, null);
+                GameState.X_TURN, null, game.createdAt());
         gameRepository.save(joined);
         return joined;
     }
+
 
     @Override
     public boolean validateMove(UUID gameId, UUID playerId, GameBoard updatedBoard) {
         GameSession game = getGameById(gameId);
 
         if (!game.state().isActive()) {
-            return false; // партия не идёт: ожидание либо уже окончена
+            return false;
         }
         if (updatedBoard == null) {
             return false;
         }
         int playerMark = game.markOf(playerId);
         if (playerMark < 0) {
-            return false; // пользователь не участник этой партии
+            return false;
         }
         int expectedMark = game.state() == GameState.X_TURN ? GameBoard.X : GameBoard.O;
         if (playerMark != expectedMark) {
-            return false; // ход не той стороны
+            return false;
         }
         return game.board().isValidMove(updatedBoard);
     }
+
 
     @Override
     public GameSession makeMove(UUID gameId, UUID playerId, GameBoard updatedBoard) {
@@ -112,6 +135,7 @@ public class TicTacToeServiceImpl implements TicTacToeService {
         return current;
     }
 
+
     @Override
     public String getGameStatus(GameSession game) {
         return switch (game.state()) {
@@ -123,6 +147,7 @@ public class TicTacToeServiceImpl implements TicTacToeService {
             case WIN_O -> "Победа игрока с UUID " + game.winnerId();
         };
     }
+
 
     private GameSession withState(GameSession game, GameBoard newBoard) {
         int movedMark = game.state() == GameState.X_TURN ? GameBoard.X : GameBoard.O;
@@ -141,8 +166,9 @@ public class TicTacToeServiceImpl implements TicTacToeService {
         return new GameSession(game.id(), newBoard,
                 game.xPlayerType(), game.xPlayerId(),
                 game.oPlayerType(), game.oPlayerId(),
-                newState, winnerId);
+                newState, winnerId, game.createdAt());
     }
+
 
     private GameBoard bestMove(GameBoard board, int aiMark) {
         int bestScore = Integer.MIN_VALUE;
@@ -153,9 +179,9 @@ public class TicTacToeServiceImpl implements TicTacToeService {
         for (int i = 0; i < GameBoard.SIZE; i++) {
             for (int j = 0; j < GameBoard.SIZE; j++) {
                 if (cells[i][j] == GameBoard.EMPTY) {
-                    cells[i][j] = aiMark;                       // пробуем ход
-                    int score = minimax(board, 0, false, aiMark); // оцениваем позицию соперника
-                    cells[i][j] = GameBoard.EMPTY;               // откатываем пробный ход
+                    cells[i][j] = aiMark;
+                    int score = minimax(board, 0, false, aiMark);
+                    cells[i][j] = GameBoard.EMPTY;
                     if (score > bestScore) {
                         bestScore = score;
                         bestRow = i;

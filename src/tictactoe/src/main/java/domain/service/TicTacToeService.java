@@ -7,6 +7,7 @@ import domain.model.PlayerType;
 import java.util.List;
 import java.util.UUID;
 
+
 public interface TicTacToeService {
 
     GameSession createGame(PlayerType opponentType, UUID playerId);
@@ -14,6 +15,10 @@ public interface TicTacToeService {
     GameSession getGameById(UUID gameId);
 
     List<GameSession> getAvailableGames();
+
+    List<domain.model.PlayerWinInfo> getTopPlayers(int limit);
+
+    List<GameSession> getFinishedGames(UUID playerId);
 
     GameSession joinGame(UUID gameId, UUID playerId);
 

@@ -1,72 +1,65 @@
 package domain.service.impl;
-
-import domain.model.SignUpRequest;
-import domain.model.User;
-import domain.service.AuthService;
-import domain.service.UserService;
+import domain.model.*;
+import domain.service.*;
+import security.*;
 import org.springframework.stereotype.Service;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Optional;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.BadCredentialsException;
 import java.util.UUID;
 
 
 @Service
 public class AuthServiceImpl implements AuthService {
+    private final UserService users;
+    private final JwtProvider jwt;
 
-    private static final String BASIC_PREFIX = "Basic ";
+    public AuthServiceImpl(UserService users, JwtProvider jwt) { this.users = users; this.jwt = jwt; }
 
-    private final UserService userService;
-
-
-    public AuthServiceImpl(UserService userService) {
-        this.userService = userService;
+    @Override
+    public boolean signUp(SignUpRequest request) {
+        if (request == null) return false;
+        try { users.createUser(request.login(), request.password()); return true; }
+        catch (IllegalArgumentException e) { return false; }
     }
 
     @Override
-    public boolean signUp(SignUpRequest signUpRequest) {
-        if (signUpRequest == null
-                || signUpRequest.login() == null || signUpRequest.login().isBlank()
-                || signUpRequest.password() == null || signUpRequest.password().isBlank()) {
-            return false;
+    public JwtResponse signIn(JwtRequest request) {
+        if (request == null || request.login() == null || request.password() == null
+                || !users.validateCredentials(request.login(), request.password())) {
+            throw new BadCredentialsException("Invalid login or password");
         }
-        try {
-            userService.createUser(signUpRequest.login(), signUpRequest.password());
-            return true;
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
+        User user = users.findByLogin(request.login()).orElseThrow(() -> new BadCredentialsException("User not found"));
+        return tokens(user);
+    }
+
+    private User refreshUser(String token) {
+        if (!jwt.validateRefreshToken(token)) throw new BadCredentialsException("Invalid refresh token");
+        UUID id = UUID.fromString(jwt.getClaims(token).get("uuid", String.class));
+        return users.findByUuid(id).orElseThrow(() -> new BadCredentialsException("User not found"));
     }
 
     @Override
-    public UUID signIn(String authorizationHeader) {
-        if (authorizationHeader == null || authorizationHeader.isBlank()) {
-            throw new IllegalArgumentException("Заголовок Authorization отсутствует");
-        }
+    public JwtResponse refreshAccessToken(String token) {
+        return new JwtResponse("Bearer", jwt.generateAccessToken(refreshUser(token)), null);
+    }
 
-        String encoded = authorizationHeader.startsWith(BASIC_PREFIX)
-                ? authorizationHeader.substring(BASIC_PREFIX.length()).trim()
-                : authorizationHeader.trim();
-
-        String decoded;
-        try {
-            decoded = new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Не удалось раскодировать base64 из заголовка");
+    @Override
+    public JwtResponse refreshRefreshToken(String token) {
+        User user = refreshUser(token);
+        JwtAuthentication auth = getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || !user.id().equals(auth.getPrincipal())) {
+            throw new BadCredentialsException("Refresh token belongs to another user");
         }
+        return tokens(user);
+    }
 
-        int separatorIndex = decoded.indexOf(':');
-        if (separatorIndex <= 0 || separatorIndex == decoded.length() - 1) {
-            throw new IllegalArgumentException("Ожидался формат base64(login:password)");
-        }
-        String login = decoded.substring(0, separatorIndex);
-        String password = decoded.substring(separatorIndex + 1);
+    private JwtResponse tokens(User user) {
+        return new JwtResponse("Bearer", jwt.generateAccessToken(user), jwt.generateRefreshToken(user));
+    }
 
-        Optional<User> user = userService.findByLogin(login);
-        if (user.isEmpty() || !userService.validateCredentials(login, password)) {
-            throw new IllegalArgumentException("Неверный логин или пароль");
-        }
-        return user.get().id();
+    @Override
+    public JwtAuthentication getAuthentication() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth instanceof JwtAuthentication jwtAuth ? jwtAuth : null;
     }
 }

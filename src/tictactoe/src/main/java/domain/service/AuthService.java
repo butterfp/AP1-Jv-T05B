@@ -1,12 +1,17 @@
 package domain.service;
+import domain.model.*;
+import security.JwtAuthentication;
 
-import domain.model.SignUpRequest;
-
-import java.util.UUID;
 
 public interface AuthService {
 
-    boolean signUp(SignUpRequest signUpRequest);
+    boolean signUp(SignUpRequest request);
 
-    UUID signIn(String authorizationHeader);
+    JwtResponse signIn(JwtRequest request);
+
+    JwtResponse refreshAccessToken(String refreshToken);
+
+    JwtResponse refreshRefreshToken(String refreshToken);
+
+    JwtAuthentication getAuthentication();
 }

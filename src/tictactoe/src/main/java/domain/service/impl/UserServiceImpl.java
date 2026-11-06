@@ -9,16 +9,19 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 import java.util.UUID;
 
+
 @Service
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+
     public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
+
 
     @Override
     public User createUser(String login, String rawPassword) {
@@ -32,10 +35,12 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(new User(UUID.randomUUID(), login, passwordEncoder.encode(rawPassword)));
     }
 
+
     @Override
     public Optional<User> findByUuid(UUID id) {
         return userRepository.findById(id);
     }
+
 
     @Override
     public Optional<User> findByLogin(String login) {
