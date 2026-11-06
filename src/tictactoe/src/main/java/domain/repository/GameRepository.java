@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+
 public interface GameRepository {
 
     void save(GameSession game);
@@ -15,4 +16,8 @@ public interface GameRepository {
     List<GameSession> findWaitingGames();
 
     List<GameSession> findAll();
+
+    List<domain.model.PlayerWinInfo> findTopPlayers(int limit);
+
+    List<GameSession> findFinishedByPlayerId(UUID playerId);
 }
